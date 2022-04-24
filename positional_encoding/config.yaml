@@ -1,0 +1,13 @@
+
+barf_c2f: [0.1, 0.5] # default values in BARF github
+
+# barf_c2f: [0, 0.4] # for planar image alignment
+
+nerf:                                                       
+    posenc:                                                 
+        L_3D: 10    # if using only position - use only on 3D points                                       
+        L_view: 4   # if adding view dependence - use L_view for on directions
+
+planar:                                                                                                
+    posenc:                                                 
+        L_2D: 8     # if using only position - use only on 2D points 
