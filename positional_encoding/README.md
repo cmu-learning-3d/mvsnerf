@@ -2,7 +2,8 @@
 
 # PE Class
 
-BARF Reference: [BARF/model/planar.py](https://github.com/chenhsuanlin/bundle-adjusting-NeRF/blob/99218cc543eca5453a7c4829638ccffd0a7ad2f5/model/planar.py#L232) 
+Planar Reference: [BARF/model/planar.py](https://github.com/chenhsuanlin/bundle-adjusting-NeRF/blob/99218cc543eca5453a7c4829638ccffd0a7ad2f5/model/planar.py#L232) 
+BARF Reference: [BARF/model/barf.py](https://github.com/chenhsuanlin/bundle-adjusting-NeRF/blob/803291bd0ee91c7c13fb5cc42195383c5ade7d15/model/barf.py#L251) 
 NERF Reference: [BARF/model/nerf.py](https://github.com/chenhsuanlin/bundle-adjusting-NeRF/blob/363e077fa9627231bb9b4a69a143b2ef9467d7be/model/nerf.py#L410) 
 
 ```python
