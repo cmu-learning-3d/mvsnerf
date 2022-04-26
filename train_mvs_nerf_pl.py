@@ -220,13 +220,14 @@ class MVSSystem(LightningModule):
 
 
                 # rendering
-                rgb, disp, acc, depth_pred, density_ray, ret = rendering(self.current_its, args, pose_ref, rays_pts, rays_NDC, depth_candidates, rays_o, rays_dir,
+                rgb, disp, acc, depth_pred, density_ray, ret = rendering(999999, args, pose_ref, rays_pts, rays_NDC, depth_candidates, rays_o, rays_dir,
                                                        volume_feature, imgs[:, :-1], img_feat=None, **self.render_kwargs_train)
                 rgbs.append(rgb.cpu());depth_preds.append(depth_pred.cpu())
 
             imgs = imgs.cpu()
             rgb, depth_r = torch.clamp(torch.cat(rgbs).reshape(H, W, 3).permute(2,0,1),0,1), torch.cat(depth_preds).reshape(H, W)
             img_err_abs = (rgb - imgs[0,-1]).abs()
+            
 
             if self.args.with_depth:
                 depth_gt_render = depths_h[0, -1].cpu()

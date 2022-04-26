@@ -135,7 +135,7 @@ for i_scene, scene in enumerate([1]):# any scene index, like 1,2,3...,,8,21,103,
 
 
                 # rendering
-                rgb, disp, acc, depth_pred, alpha, extras = rendering(args, pose_source, xyz_coarse_sampled,
+                rgb, disp, acc, depth_pred, alpha, extras = rendering(9999999, args, pose_source, xyz_coarse_sampled,
                                                                        xyz_NDC, z_vals, rays_o, rays_d,
                                                                        volume_feature,imgs_source, **render_kwargs_train)
     
