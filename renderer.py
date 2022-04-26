@@ -39,12 +39,12 @@ def batchify(fn, chunk):
 
     return ret
 
-def run_network_mvs(pts, viewdirs, alpha_feat, fn, embed_fn, embeddirs_fn, netchunk=1024):
+def run_network_mvs(pts, viewdirs, alpha_feat, fn, embed_fn, embeddirs_fn, iterations=0, netchunk=1024):
     """Prepares inputs and applies network 'fn'.
     """
 
     if embed_fn is not None:
-        pts = embed_fn(pts)
+        pts = embed_fn(pts, its=iterations)
 
     if alpha_feat is not None:
         pts = torch.cat((pts,alpha_feat), dim=-1)
@@ -54,7 +54,7 @@ def run_network_mvs(pts, viewdirs, alpha_feat, fn, embed_fn, embeddirs_fn, netch
             viewdirs = viewdirs[:, None].expand(-1,pts.shape[1],-1)
 
         if embeddirs_fn is not None:
-            viewdirs = embeddirs_fn(viewdirs)
+            viewdirs = embeddirs_fn(viewdirs, its=iterations)
         pts = torch.cat([pts, viewdirs], -1)
 
     alpha_only = viewdirs is None
@@ -135,7 +135,7 @@ def gen_pts_feats(imgs, volume_feature, rays_pts, pose_ref, rays_ndc, feat_dim, 
         input_feat = index_point_feature(volume_feature, rays_ndc) if torch.is_tensor(volume_feature) else volume_feature(rays_ndc)
     return input_feat
 
-def rendering(args, pose_ref, rays_pts, rays_ndc, depth_candidates, rays_o, rays_dir,
+def rendering(iterations, args, pose_ref, rays_pts, rays_ndc, depth_candidates, rays_o, rays_dir,
               volume_feature=None, imgs=None, network_fn=None, img_feat=None, network_query_fn=None, white_bkgd=False, **kwargs):
 
     # rays angle
@@ -153,7 +153,7 @@ def rendering(args, pose_ref, rays_pts, rays_ndc, depth_candidates, rays_o, rays
                                img_feat, args.img_downscale, args.use_color_volume, args.net_type)
 
     # rays_ndc = rays_ndc * 2 - 1.0
-    raw = network_query_fn(rays_ndc, angle, input_feat, network_fn)
+    raw = network_query_fn(rays_ndc, angle, input_feat, network_fn, iterations=iterations)
     if raw.shape[-1]>4:
         input_feat = torch.cat((input_feat[...,:8],raw[...,4:]), dim=-1)
 
@@ -164,14 +164,14 @@ def rendering(args, pose_ref, rays_pts, rays_ndc, depth_candidates, rays_o, rays
 
     return rgb_map, input_feat, weights, depth_map, alpha, ret
 
-def render_density(network_fn, rays_pts, density_feature,  network_query_fn, chunk=1024 * 5):
+def render_density(network_fn, rays_pts, density_feature,  network_query_fn, iterations=None, chunk=1024 * 5):
     densities = []
     device = density_feature.device
     for i in range(0, rays_pts.shape[0], chunk):
 
         input_feat = rays_pts[i:i + chunk].to(device)
 
-        density = network_query_fn(input_feat, None, density_feature[i:i + chunk], network_fn)
+        density = network_query_fn(input_feat, None, density_feature[i:i + chunk], network_fn, iterations=iterations)
         densities.append(density)
 
     return torch.cat(densities)

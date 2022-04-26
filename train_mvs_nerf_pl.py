@@ -52,10 +52,25 @@ class MVSSystem(LightningModule):
 
         self.eval_metric = [0.01,0.05, 0.1]
 
+        self.eye_pose = torch.eye(3,4).cuda()
+        self.current_its = 0
+
+
+    # def get_pose(self):
+    #     pose = self.pose_eye
+    #     # add learnable pose correction
+    #     # var.se3_refine = self.se3_refine.weight[var.idx]
+    #     # pose_refine = camera.lie.se3_to_SE3(var.se3_refine)
+    #     # pose = camera.pose.compose([pose_refine,pose])
+
+    #     return pose
 
     def decode_batch(self, batch, idx=list(torch.arange(4))):
-
         data_mvs = sub_selete_data(batch, device, idx, filtKey=[])
+
+        # pose = self.get_pose()
+
+        # print("World 2 camera shape: ", data_mvs['w2cs'].shape, pose.shape)
         pose_ref = {'w2cs': data_mvs['w2cs'].squeeze(), 'intrinsics': data_mvs['intrinsics'].squeeze(),
                     'c2ws': data_mvs['c2ws'].squeeze(),'near_fars':data_mvs['near_fars'].squeeze()}
 
@@ -104,6 +119,8 @@ class MVSSystem(LightningModule):
     def training_step(self, batch, batch_nb):
         if 'scan' in batch.keys():
             batch.pop('scan')
+
+        self.current_its += 1
         log, loss = {},0
         data_mvs, pose_ref = self.decode_batch(batch)
         imgs, proj_mats = data_mvs['images'], data_mvs['proj_mats']
@@ -114,13 +131,14 @@ class MVSSystem(LightningModule):
         imgs = self.unpreprocess(imgs)
 
 
+
         N_rays, N_samples = args.batch_size, args.N_samples
         c2ws, w2cs, intrinsics = pose_ref['c2ws'], pose_ref['w2cs'], pose_ref['intrinsics']
         rays_pts, rays_dir, target_s, rays_NDC, depth_candidates, rays_o, rays_depth, ndc_parameters = \
             build_rays(imgs, depths_h, pose_ref, w2cs, c2ws, intrinsics, near_fars, N_rays, N_samples, pad=args.pad)
 
-
-        rgb, disp, acc, depth_pred, alpha, ret = rendering(args, pose_ref, rays_pts, rays_NDC, depth_candidates, rays_o, rays_dir,
+        
+        rgb, disp, acc, depth_pred, alpha, ret = rendering(self.current_its, args, pose_ref, rays_pts, rays_NDC, depth_candidates, rays_o, rays_dir,
                                                        volume_feature, imgs[:, :-1], img_feat=None,  **self.render_kwargs_train)
 
 
@@ -164,7 +182,6 @@ class MVSSystem(LightningModule):
         if self.global_step % 20000==19999:
             self.save_ckpt(f'{self.global_step}')
 
-
         return  {'loss':loss}
 
 
@@ -203,8 +220,8 @@ class MVSSystem(LightningModule):
 
 
                 # rendering
-                rgb, disp, acc, depth_pred, density_ray, ret = rendering(args, pose_ref, rays_pts, rays_NDC, depth_candidates, rays_o, rays_dir,
-                                                       volume_feature, imgs[:, :-1], img_feat=None,  **self.render_kwargs_train)
+                rgb, disp, acc, depth_pred, density_ray, ret = rendering(self.current_its, args, pose_ref, rays_pts, rays_NDC, depth_candidates, rays_o, rays_dir,
+                                                       volume_feature, imgs[:, :-1], img_feat=None, **self.render_kwargs_train)
                 rgbs.append(rgb.cpu());depth_preds.append(depth_pred.cpu())
 
             imgs = imgs.cpu()
