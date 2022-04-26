@@ -44,11 +44,69 @@ class Embedder:
         self.embed_fns = embed_fns
         self.out_dim = out_dim
 
-    def embed(self, inputs):
+    def embed(self, inputs, iterations=0):
         repeat = inputs.dim()-1
         inputs_scaled = (inputs.unsqueeze(-2) * self.freq_bands.view(*[1]*repeat,-1,1)).reshape(*inputs.shape[:-1],-1)
         inputs_scaled = torch.cat((inputs, torch.sin(inputs_scaled), torch.cos(inputs_scaled)),dim=-1)
+
+        print(f"Inputs shape: {inputs.shape}, Iterations: {iterations}, Inputs Scaled Shape: {inputs_scaled.shape}")
+        exit(0)
         return inputs_scaled
+
+
+class BarfEmbedder:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.create_embedding_fn()
+        self.max_iterations = 200000
+
+    def create_embedding_fn(self):
+        embed_fns = []
+        d = self.kwargs['input_dims']
+        out_dim = 0
+        if self.kwargs['include_input']:
+            embed_fns.append(lambda x : x)
+            out_dim += d
+
+        max_freq = self.kwargs['max_freq_log2']
+        N_freqs = self.kwargs['num_freqs']
+
+        if self.kwargs['log_sampling']:
+            freq_bands = 2.**torch.linspace(0., max_freq, steps=N_freqs)
+        else:
+            freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
+        self.freq_bands = freq_bands.reshape(1,-1,1).cuda()
+
+        for freq in freq_bands:
+            for p_fn in self.kwargs['periodic_fns']:
+                embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
+                out_dim += d
+
+        self.embed_fns = embed_fns
+        self.out_dim = out_dim
+
+    def embed(self, inputs, iterations):
+        start,end = 0.1, 0.5
+        L = 10
+
+        freq = 2.**torch.arange(L, device='cuda') * np.pi
+        spectrum = inputs[...,None]*freq # [B,...,N,L]
+        sin,cos = spectrum.sin(),spectrum.cos() # [B,...,N,L]
+        input_enc = torch.stack([sin,cos],dim=-2) # [B,...,N,2,L]
+        input_enc = input_enc.view(*inputs.shape[:-1],-1) # [B,...,2NL]
+
+        alpha = ((iterations * 1.0 / self.max_iterations) - start)/(end-start)*L
+        k = torch.arange(L, dtype=torch.float32,device='cuda')
+        weight = (1-(alpha-k).clamp_(min=0,max=1).mul_(np.pi).cos_())/2
+        # apply weights
+        shape = input_enc.shape
+        input_enc = (input_enc.view(-1,L)*weight).view(*shape)
+
+        final_enc = torch.cat([inputs,input_enc],dim=-1)
+        print(f"Inputs shape: {inputs.shape}, Iterations: {iterations}, Inputs Scaled Shape: {input_enc.shape}, Final Encoding Shape: {final_enc.shape}")
+        
+        return final_enc
+
 
 def get_embedder(multires, i=0, input_dims=3):
     if i == -1:
@@ -63,12 +121,14 @@ def get_embedder(multires, i=0, input_dims=3):
                 'periodic_fns' : [torch.sin, torch.cos],
     }
 
-    embedder_obj = Embedder(**embed_kwargs)
-    embed = lambda x, eo=embedder_obj : eo.embed(x)
+    embedder_obj = BarfEmbedder(**embed_kwargs)
+    embed = lambda x, eo=embedder_obj, its=0 : eo.embed(x, iterations=its)
     return embed, embedder_obj.out_dim
+    
 
 class ScaledDotProductAttention(nn.Module):
     ''' Scaled Dot-Product Attention '''
+
 
     def __init__(self, temperature, attn_dropout=0.1):
         super().__init__()
@@ -597,10 +657,11 @@ def create_nerf_mvs(args, pts_embedder=True, use_mvs=False, dir_embedder=True):
                  input_ch_views=input_ch_views, input_ch_feat=args.feat_dim).to(device)
         grad_vars += list(model_fine.parameters())
 
-    network_query_fn = lambda pts, viewdirs, rays_feats, network_fn: run_network_mvs(pts, viewdirs, rays_feats, network_fn,
+    network_query_fn = lambda pts, viewdirs, rays_feats, network_fn, iterations: run_network_mvs(pts, viewdirs, rays_feats, network_fn,
                                                                         embed_fn=embed_fn,
                                                                         embeddirs_fn=embeddirs_fn,
-                                                                        netchunk=args.netchunk)
+                                                                        netchunk=args.netchunk,
+                                                                        iterations=iterations)
 
     EncodingNet = None
     if use_mvs:
