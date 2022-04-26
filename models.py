@@ -48,9 +48,6 @@ class Embedder:
         repeat = inputs.dim()-1
         inputs_scaled = (inputs.unsqueeze(-2) * self.freq_bands.view(*[1]*repeat,-1,1)).reshape(*inputs.shape[:-1],-1)
         inputs_scaled = torch.cat((inputs, torch.sin(inputs_scaled), torch.cos(inputs_scaled)),dim=-1)
-
-        print(f"Inputs shape: {inputs.shape}, Iterations: {iterations}, Inputs Scaled Shape: {inputs_scaled.shape}")
-        exit(0)
         return inputs_scaled
 
 
@@ -103,7 +100,6 @@ class BarfEmbedder:
         input_enc = (input_enc.view(-1,L)*weight).view(*shape)
 
         final_enc = torch.cat([inputs,input_enc],dim=-1)
-        print(f"Inputs shape: {inputs.shape}, Iterations: {iterations}, Inputs Scaled Shape: {input_enc.shape}, Final Encoding Shape: {final_enc.shape}")
         
         return final_enc
 

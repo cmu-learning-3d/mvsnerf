@@ -33,16 +33,14 @@ from data.ray_utils import ray_marcher
 torch.cuda.set_device(0)
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-for i_scene, scene in enumerate([1]):# any scene index, like 1,2,3...,,8,21,103,114
+for i_scene, scene in enumerate([31]):# any scene index, like 1,2,3...,,8,21,103,114
 
     cmd = f'--datadir /tmp/mvs_training/dtu/scan{scene} \
      --dataset_name dtu_ft --imgScale_test {1.0} ' #--use_color_volume
     
-    is_finetued = False # set False if rendering without finetuning
-    if is_finetued:
-        cmd += f'--ckpt ./runs_fine_tuning/dtu_scan{scene}_2h/ckpts//latest.tar'
-    else:
-        cmd += '--ckpt ./ckpts/mvsnerf-v0.tar'
+    is_finetued = True # set False if rendering without finetuning
+    cmd += f'--ckpt ./runs_fine_tuning/scan31-ft-barf-small-epoch1/ckpts/latest.tar'
+    save_dir = f'./runs_fine_tuning/scan31-ft-barf-small-epoch1/' 
 
     args = config_parser(cmd.split())
     args.use_viewdirs = True
@@ -74,7 +72,6 @@ for i_scene, scene in enumerate([1]):# any scene index, like 1,2,3...,,8,21,103,
     val_idx = dataset.img_idx
     
     save_as_image = False
-    save_dir = f'results/video2' 
     os.makedirs(save_dir, exist_ok=True)
     MVSNet.train()
     MVSNet = MVSNet.cuda()
@@ -135,7 +132,7 @@ for i_scene, scene in enumerate([1]):# any scene index, like 1,2,3...,,8,21,103,
 
 
                 # rendering
-                rgb, disp, acc, depth_pred, alpha, extras = rendering(args, pose_source, xyz_coarse_sampled,
+                rgb, disp, acc, depth_pred, alpha, extras = rendering(9999999, args, pose_source, xyz_coarse_sampled,
                                                                        xyz_NDC, z_vals, rays_o, rays_d,
                                                                        volume_feature,imgs_source, **render_kwargs_train)
     
@@ -155,5 +152,5 @@ for i_scene, scene in enumerate([1]):# any scene index, like 1,2,3...,,8,21,103,
             img_vis = np.concatenate((rgb_rays*255,depth_rays_preds),axis=1)
             frames.append(img_vis.astype('uint8'))
                 
-    imageio.mimsave(f'{save_dir}/128_64.gif', np.stack(frames), fps=20)
+    imageio.mimsave(f'{save_dir}/output.gif', np.stack(frames), fps=20)
 # plt.imshow(rgb_rays)

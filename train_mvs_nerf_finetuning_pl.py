@@ -161,7 +161,7 @@ class MVSSystem(LightningModule):
                                          near=self.near_far_source[0], far=self.near_far_source[1], pad=args.pad, lindisp=args.use_disp)
 
         # rendering
-        rgbs, disp, acc, depth_pred, alpha, extras = rendering(args, self.pose_source, xyz_coarse_sampled, xyz_NDC, z_vals, rays_o, rays_d,
+        rgbs, disp, acc, depth_pred, alpha, extras = rendering(999999, args, self.pose_source, xyz_coarse_sampled, xyz_NDC, z_vals, rays_o, rays_d,
                                                        self.volume, self.imgs,  **self.render_kwargs_train)
 
         log, loss = {}, 0
@@ -226,7 +226,7 @@ class MVSSystem(LightningModule):
 
 
                 # rendering
-                rgb, disp, acc, depth_pred, alpha, extras = rendering(args, self.pose_source, xyz_coarse_sampled,
+                rgb, disp, acc, depth_pred, alpha, extras = rendering(999999, args, self.pose_source, xyz_coarse_sampled,
                                                                        xyz_NDC, z_vals, rays_o, rays_d,
                                                                        self.volume, self.imgs,
                                                                        **self.render_kwargs_train)
